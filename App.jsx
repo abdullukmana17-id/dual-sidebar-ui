@@ -46,38 +46,37 @@ function App() {
       <section className="p-4 min-vh-100">
         <div className="container">
           <div className="row">
-            <div className="col-12">
-              <h1>Dashboard</h1>
+            <div className="col-12 d-flex flex-wrap gap-2">
 
               <button
-                className="btn btn-primary me-2"
+                className="btn btn-dark rounded-0"
                 onClick={() => layoutRef.current?.togglePrimary()}
               >
                 Toggle Sidebar Kiri
               </button>
 
               <button
-                className="btn btn-secondary me-2"
+                className="btn btn-dark rounded-0"
                 onClick={() => layoutRef.current?.toggleSecondary()}
               >
                 Toggle Sidebar Kanan
               </button>
 
               <button
-                className="btn btn-danger me-2"
+                className="btn btn-dark rounded-0"
                 onClick={() => layoutRef.current?.setPrimaryHidden(true)}
               >
                 Sembunyikan Sidebar Kiri
               </button>
 
               <button
-                className="btn btn-outline-dark"
+                className="btn btn-dark rounded-0"
                 onClick={() => console.log(layoutRef.current?.getState())}
               >
                 Lihat State Layout
               </button>
-              <button className="btn btn-dark" data-bs-toggle="offcanvas" data-bs-target="#primarySidebar">Offcanfas Sidebar Kanan</button>
-              <button className="btn btn-dark" data-bs-toggle="offcanvas" data-bs-target="#secondarySidebar">Offcanfas Sidebar Kanan</button>
+              <button className="btn btn-dark rounded-0 d-sm-none" data-bs-toggle="offcanvas" data-bs-target="#primarySidebar">Offcanfas Sidebar Kanan</button>
+              <button className="btn btn-dark rounded-0 d-xl-none" data-bs-toggle="offcanvas" data-bs-target="#secondarySidebar">Offcanfas Sidebar Kanan</button>
             </div>
           </div>
         </div>
