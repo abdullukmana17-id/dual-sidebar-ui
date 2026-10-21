@@ -155,7 +155,7 @@ const Layout = forwardRef(function Layout(
                         <div className="col-12 p-0 d-flex">
                             <aside
                                 id="primarySidebar"
-                                style={sidebarStyle}
+                                style={adjustHeight == true && sidebarStyle }
                                 className={[
                                     "sidebar primary-sidebar",
                                     "offcanvas-sm offcanvas-start",
@@ -194,7 +194,7 @@ const Layout = forwardRef(function Layout(
 
                                     <aside
                                         id="secondarySidebar"
-                                        style={sidebarStyle}
+                                        style={adjustHeight == true && sidebarStyle }
                                         className={[
                                             "sidebar secondary-sidebar",
                                             "border-start offcanvas-end offcanvas-xl",
