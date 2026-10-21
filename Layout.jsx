@@ -1,3 +1,4 @@
+
 import {
     forwardRef,
     useEffect,
@@ -11,19 +12,55 @@ import {
 const useIsomorphicLayoutEffect =
     typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+const STORAGE_KEY = "dual-sidebar-state";
+
+const DEFAULT_SIDEBAR_STATE = {
+    primaryHidden: false,
+    secondaryHidden: false,
+};
+
+// Membaca status sidebar dari localStorage.
+function getSavedSidebarState() {
+    if (typeof window === "undefined") {
+        return DEFAULT_SIDEBAR_STATE;
+    }
+
+    try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+
+        if (!saved) {
+            return DEFAULT_SIDEBAR_STATE;
+        }
+
+        const parsed = JSON.parse(saved);
+
+        return {
+            primaryHidden:
+                typeof parsed.primaryHidden === "boolean"
+                    ? parsed.primaryHidden
+                    : false,
+            secondaryHidden:
+                typeof parsed.secondaryHidden === "boolean"
+                    ? parsed.secondaryHidden
+                    : false,
+        };
+    } catch {
+        return DEFAULT_SIDEBAR_STATE;
+    }
+}
+
 /**
- * Mengembalikan "offset atas" sidebar (string CSS).
- * - number            -> px
- * - ref               -> bagian bawah elemen yang masih terlihat di viewport
- * - string selector   -> sama seperti ref
- * - string nilai CSS  -> dipakai langsung
- * - null/undefined    -> "0px"
+ * Mengembalikan offset atas sidebar (string CSS).
+ * - number          -> px
+ * - ref             -> bagian bawah elemen
+ * - string selector -> bagian bawah elemen
+ * - string CSS      -> nilai CSS langsung
+ * - null/undefined  -> 0px
  */
 function useHeightReference(heightReference) {
     const [height, setHeight] = useState("0px");
 
     useIsomorphicLayoutEffect(() => {
-        // Number
         if (typeof heightReference === "number") {
             setHeight(`${heightReference}px`);
             return;
@@ -31,16 +68,13 @@ function useHeightReference(heightReference) {
 
         let element = null;
 
-        // Ref object
         if (
             heightReference &&
             typeof heightReference === "object" &&
             "current" in heightReference
         ) {
             element = heightReference.current;
-        }
-        // String
-        else if (
+        } else if (
             typeof heightReference === "string" &&
             heightReference.trim()
         ) {
@@ -53,7 +87,11 @@ function useHeightReference(heightReference) {
             }
 
             if (!element) {
-                if (CSS.supports("height", value)) {
+                const supportsHeight =
+                    typeof CSS !== "undefined" &&
+                    CSS.supports("height", value);
+
+                if (supportsHeight) {
                     setHeight(value);
                 } else {
                     console.warn(
@@ -61,6 +99,7 @@ function useHeightReference(heightReference) {
                     );
                     setHeight("0px");
                 }
+
                 return;
             }
         }
@@ -70,40 +109,48 @@ function useHeightReference(heightReference) {
             return;
         }
 
-        // Ukur bagian bawah elemen yang masih terlihat di viewport.
-        // Header sticky  -> nilainya tetap setinggi header.
-        // Header biasa   -> mengecil sampai 0 saat di-scroll.
         const measure = () => {
             const bottom = Math.max(
                 0,
                 Math.round(element.getBoundingClientRect().bottom)
             );
+
             const next = `${bottom}px`;
+
             setHeight((prev) => (prev === next ? prev : next));
         };
 
         let frame = null;
+
         const schedule = () => {
             if (frame !== null) return;
+
             frame = requestAnimationFrame(() => {
                 frame = null;
                 measure();
             });
         };
 
-        measure(); // sebelum paint pertama -> tidak ada kedip/tumpang tindih
+        measure();
 
         const observer = new ResizeObserver(schedule);
         observer.observe(element);
 
-        window.addEventListener("scroll", schedule, { passive: true });
+        window.addEventListener("scroll", schedule, {
+            passive: true,
+        });
+
         window.addEventListener("resize", schedule);
 
         return () => {
             observer.disconnect();
+
             window.removeEventListener("scroll", schedule);
             window.removeEventListener("resize", schedule);
-            if (frame !== null) cancelAnimationFrame(frame);
+
+            if (frame !== null) {
+                cancelAnimationFrame(frame);
+            }
         };
     }, [heightReference]);
 
@@ -126,7 +173,6 @@ const Layout = forwardRef(function Layout(
     },
     ref
 ) {
-    // Hook selalu dipanggil (tidak boleh di dalam if).
     const referenceHeight = useHeightReference(
         adjustHeight ? heightReference : null
     );
@@ -138,15 +184,57 @@ const Layout = forwardRef(function Layout(
           }
         : undefined;
 
-    const [primaryHidden, setPrimaryHidden] = useState(false);
-    const [secondaryHidden, setSecondaryHidden] = useState(false);
+    // Inisialisasi status dari localStorage.
+    const [sidebarState, setSidebarState] = useState(
+        getSavedSidebarState
+    );
+
+    const { primaryHidden, secondaryHidden } = sidebarState;
+
+    // Simpan setiap perubahan status sidebar.
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(sidebarState)
+            );
+        } catch {
+            // Abaikan jika penyimpanan tidak tersedia.
+        }
+    }, [sidebarState]);
 
     const togglePrimary = useCallback(() => {
-        setPrimaryHidden((prev) => !prev);
+        setSidebarState((prev) => ({
+            ...prev,
+            primaryHidden: !prev.primaryHidden,
+        }));
     }, []);
 
     const toggleSecondary = useCallback(() => {
-        setSecondaryHidden((prev) => !prev);
+        setSidebarState((prev) => ({
+            ...prev,
+            secondaryHidden: !prev.secondaryHidden,
+        }));
+    }, []);
+
+    const setPrimaryHidden = useCallback((hidden) => {
+        setSidebarState((prev) => ({
+            ...prev,
+            primaryHidden:
+                typeof hidden === "function"
+                    ? Boolean(hidden(prev.primaryHidden))
+                    : Boolean(hidden),
+        }));
+    }, []);
+
+    const setSecondaryHidden = useCallback((hidden) => {
+        setSidebarState((prev) => ({
+            ...prev,
+            secondaryHidden:
+                typeof hidden === "function"
+                    ? Boolean(hidden(prev.secondaryHidden))
+                    : Boolean(hidden),
+        }));
     }, []);
 
     useImperativeHandle(
@@ -156,18 +244,43 @@ const Layout = forwardRef(function Layout(
             toggleSecondary,
             setPrimaryHidden,
             setSecondaryHidden,
+
             getState() {
-                return { primaryHidden, secondaryHidden };
+                return {
+                    primaryHidden,
+                    secondaryHidden,
+                };
+            },
+
+            // Mengatur kedua sidebar sekaligus.
+            setState(state) {
+                setSidebarState((prev) => ({
+                    ...prev,
+                    ...state,
+                }));
+            },
+
+            // Menghapus status tersimpan dan menampilkan sidebar.
+            resetState() {
+                setSidebarState(DEFAULT_SIDEBAR_STATE);
             },
         }),
-        [togglePrimary, toggleSecondary, primaryHidden, secondaryHidden]
+        [
+            togglePrimary,
+            toggleSecondary,
+            setPrimaryHidden,
+            setSecondaryHidden,
+            primaryHidden,
+            secondaryHidden,
+        ]
     );
 
-    // Satu border saja per sidebar; hilang saat sidebar disembunyikan.
     const primaryClass = [
         "sidebar primary-sidebar",
         "offcanvas-sm offcanvas-start",
-        primaryHidden ? "hide border-0" : "border-end border-secondary-subtle",
+        primaryHidden
+            ? "hide border-0"
+            : "border-end border-secondary-subtle",
     ].join(" ");
 
     const secondaryClass = [
@@ -197,6 +310,7 @@ const Layout = forwardRef(function Layout(
                                             <h5 className="offcanvas-title">
                                                 Sidebar kiri
                                             </h5>
+
                                             <button
                                                 type="button"
                                                 className="btn-close"
@@ -231,6 +345,7 @@ const Layout = forwardRef(function Layout(
                                                     <h5 className="offcanvas-title">
                                                         Sidebar kanan
                                                     </h5>
+
                                                     <button
                                                         type="button"
                                                         className="btn-close"
@@ -243,13 +358,17 @@ const Layout = forwardRef(function Layout(
 
                                         <div className="offcanvas-body p-0 h-100 d-flex flex-column flex-nowrap overflow-auto">
                                             {secondarySidebarBody || (
-                                                <p>Secondary Sidebar Content</p>
+                                                <p>
+                                                    Secondary Sidebar Content
+                                                </p>
                                             )}
                                         </div>
                                     </aside>
                                 </div>
                             ) : (
-                                <main className="flex-grow-1">{children}</main>
+                                <main className="flex-grow-1">
+                                    {children}
+                                </main>
                             )}
                         </div>
                     </div>
