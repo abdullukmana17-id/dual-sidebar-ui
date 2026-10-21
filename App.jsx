@@ -31,9 +31,6 @@ function App() {
       }
       secondarySidebarBody={<div>Panel detail</div>}
     >
-      <section className="bg-light vh-100 border-bottom">
-
-      </section>
       <section className="p-4 min-vh-100">
         <div className="container">
           <div className="row">
@@ -73,6 +70,7 @@ function App() {
           </div>
         </div>
       </section>
+      <section className="bg-light vh-100 border-top"></section>
     </Layout>
   );
 }
