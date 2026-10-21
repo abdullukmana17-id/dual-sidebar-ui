@@ -30,6 +30,18 @@ function App() {
         </>
       }
       secondarySidebarBody={<div>Panel detail</div>}
+      adjustHeight={true}
+      footer={
+        <footer className="border-top vh-100">
+          <div className="container">
+            <div className="row">
+              <div className="col-12">
+                Ini Footer
+              </div>
+            </div>
+          </div>
+        </footer>
+      }
     >
       <section className="p-4 min-vh-100">
         <div className="container">
